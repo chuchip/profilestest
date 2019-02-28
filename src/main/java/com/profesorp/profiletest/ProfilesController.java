@@ -22,8 +22,8 @@ public class ProfilesController {
 	public String get(@RequestParam(value="name",required=false) String name)
 	{
 		return "Hello "+(name==null?"SIN NOMBRE":name)+
-				"<br> This is the name : '"+read.readRegistry(id)+"' of profile number:"+ id+
-				"<br> profile name: "+write.getProfile();
+				"<br><br> The name of the profile number:"+ id+" in the database H2 is: "+read.readRegistry(id)+
+				"<br> The profile used in the application is : "+write.getProfile();
 				
 	}
 }

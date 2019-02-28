@@ -1,0 +1,172 @@
+<!doctype html>
+<html>
+<head>
+<meta charset='UTF-8'><meta name='viewport' content='width=device-width initial-scale=1'>
+<title>readme</title></head>
+<body><p>Cuando se hacen aplicaciones empresariales, lo normal es que, como mínimo, primero se  desplieguen en un entorno de pruebas  y después ya en el entorno producción. Cada entorno de pruebas tendrá diferentes bases de datos, diferentes URLs y toda una serie de parámetros específicos, con el fin de que una aplicación en desarrollo no acceda nunca a datos reales.</p>
+<p>Spring provee una manera sencilla de gestionar esta situación haciendo uso de los perfiles.  </p>
+<p>Hay varias maneras de establecer el perfil a utilizar por una aplicación:</p>
+<ol start='' >
+<li><p>Pasandolo como variable de entorno en JAVA </p>
+<p>java -jar -Dspring.profiles.active=MI_PROFILE application.jar</p>
+</li>
+<li><p>Pasandolo como un argumento al programa.</p>
+<p>java -jar application.jar --spring.profiles.active=MI_PROFILE</p>
+</li>
+
+</ol>
+<ol start='3' >
+<li><p>Especificandolo con una anotación en el propio programa, en la etiqueta @SpringBootTest, pasandole el  parametro &quot;spring.profiles.active&quot;. Muy útil para prueba unitarias.</p>
+<p>@SpringBootTest(&quot;spring.profiles.active=test&quot;)</p>
+</li>
+
+</ol>
+<ol start='4' >
+<li><p>Con la anotación @ActiveProfiles </p>
+<p>@ActiveProfiles(&quot;MI_PROFILE&quot;)</p>
+</li>
+
+</ol>
+<p>&nbsp;</p>
+<p>En el ejemplo que esta disponible en <a href='https://github.com/chuchip/profilestest' target='_blank' class='url'>https://github.com/chuchip/profilestest</a> se pueden ver como una aplicación saca diferentes mensajes y accede a diferentes datos según el perfil establecido.</p>
+<p>El proyecto es una simple aplicación web, que accede a una base de datos H2, mostrando diferentes datos según el perfil. Para crear el proyecto simplemente hay que añadir las siguientes dependencias: JPA, H2 y WEB</p>
+<p><img src='.\captura_starters.PNG' alt='captura_starters' referrerPolicy='no-referrer' /></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>Empezando por la clase principal ya veremos como definir diferentes <strong>beans</strong> dependiendo del perfil.</p>
+<pre><code class='language-java' lang='java'>@SpringBootApplication
+@Configuration
+public class ProfilesTests {
+
+	@Autowired
+	private Environment environment;
+	
+	public static void main(String[] args) {
+		SpringApplication.run(ProfilesTests.class, args);
+	}
+
+	@Bean
+	@Profile(&quot;test&quot;)
+	IWrite getWriterTest()
+	{
+		return new WriteImpl(&quot;..test.. &quot;+getProfile());		
+	}
+	@Bean
+	@Profile(&quot;default&quot;)
+	IWrite getWriterDefault()
+	{
+		return new WriteImpl(&quot;..default.. &quot;+getProfile());		
+	}
+	@Bean
+	@Profile(&quot;other&quot;)
+	IWrite getWriterOther()
+	{
+		return new WriteImpl(&quot;..other.. &quot;+getProfile());		
+	}
+	String getProfile()
+	{
+		if (environment.getActiveProfiles()==null)
+			return &quot;default&quot;;
+		String[] profiles=environment.getActiveProfiles();
+		return profiles.length&gt;0?profiles[0]:&quot;default&quot;; 
+	}
+}
+</code></pre>
+<p>En las funciones getWriterXXX, se define  siempre un <strong>bean</strong>  definido por el interface <code>IWrite</code>. La definición de este interfaz es muy simple como se puede ver en el siguiente código:</p>
+<pre><code class='language-java' lang='java'>public interface IWrite {
+	public void writeLog(String log);
+	public String getProfile();
+}
+</code></pre>
+<p>Y su implementación en la clase <code>WriteImpl</code> es también muy sencilla:</p>
+<pre><code>public class WriteImpl implements IWrite{
+	private String profile;
+	
+	public WriteImpl(String profile)
+	{
+		this.profile=profile;
+	}
+	
+	public String getProfile()
+	{
+		return profile;
+	}
+	@Override
+	public void writeLog(String log) {
+		System.out.println(&quot;Profile: &quot;+profile+&quot; -&gt; &quot;+ log);
+		
+	}
+}
+</code></pre>
+<p>Volviendo a la clase principal, se ve que  la función <strong>getWriterTest()</strong> instancia un objeto   <code>WriteImpl</code>, pasando al constructor el literal <code>..test..</code> y  lo devuelto por la función <strong>getProfile()</strong>, la cual devuelve un <strong>String</strong> con  el perfil activo. </p>
+<p>La función <strong>getWriterDefault()</strong> hace lo mismo que la anterior pero instanciando un objeto  <code>WriteImpl</code>al cual en el constructor se le pasa el literal <code>..default..</code>y  lo devuelto por la función <strong>getProfile()</strong>. Y lo mismo con la función <strong>getWriterOther()</strong>  pero pasando el literal <code>`..other..</code></p>
+<p>Lo importante de estas funciones es la anotación <strong>@Bean</strong> con la cual le decimos a <strong>Spring</strong>  que cuando si en alguna parte del código se  debe inyectar el objeto devuelto en la función en alguna parte del proyecto, que ejecute esta función para conseguirlo. </p>
+<p>En otras palabras, cuando <strong>Spring</strong> encuentre una anotación <strong>@Autowired</strong> con un objeto tipo <strong>IWrite</strong> como ocurre en el siguiente código:</p>
+<pre><code class='language-java' lang='java'>@Autowired
+IWrite out;	
+</code></pre>
+<p>buscara de alguna manera de un objeto que implemente ese <em>interface</em> o que se llame igual que el objeto en si. </p>
+<p>Así, para conseguir el objeto <strong>Spring</strong> tiene dos opciones:</p>
+<ul>
+<li>Buscar dentro del proyecto una <em>class</em> que se llame <strong>IWrite</strong>  o una clase que implemente el interfaz <strong>IWrite</strong> que este anotada con la etiqueta <strong>@Component</strong></li>
+<li>Buscar una función dentro de una clase anotada con la etiqueta <strong>@Configuration</strong>   una función anotada con <strong>@Bean</strong>  y  que devuelva  un objeto de ese tipo.</li>
+
+</ul>
+<p>Se pueden dar varios casos en este momento:</p>
+<ol>
+<li>Encuentra un objeto y lo usa. Recalcar que el objeto solo será buscado una vez, de tal manera que solo habrá un objeto tipo <strong>IWrite</strong></li>
+<li>No encuentra un objeto con lo cual da un error y la aplicación no se ejecutara.</li>
+<li>Encuentra más de un objeto y como no sabe con cual quedarse da un error y la aplicación no se ejecuta.</li>
+
+</ol>
+<p>Como se puede ver, en el código hay tres funciones que devuelven un objeto tipo <strong>IWrite</strong> con lo cual <strong>Spring</strong> daría un error, para evitarlo añadimos la etiqueta <strong>@Profile</strong> . De esta manera si el perfil de la aplicación no coincide con el literal dentro de  <strong>@Profile</strong> esa función será ignorada. Y como se puede ver, cada función tiene su propia anotación <strong>@Profile</strong> con lo cual <strong>Spring</strong> solo tratara una de ellas. </p>
+<p>Destacar que si lanzamos la aplicación sin especificar ningún perfil, <strong>Spring</strong> elige el perfil <strong>default</strong>.</p>
+<p>Por supuesto, si lanzáramos la aplicación con un perfil que no fuera <strong>default</strong>,<strong>test</strong> o <strong>other</strong> la aplicación fallaría, al no encontrar ningún objeto que implemente el interfaz <strong>IWrite</strong> </p>
+<p>Para demostrar el caso en que <strong>Spring</strong> deba buscar una clase, en el proyecto de ejemplo se puede ver como se define el interfaz <strong>IRead</strong> el cual es implementado por la clases <strong>ReadDefImpl</strong> y <strong>ReadOtherImpl</strong>.</p>
+<p>Obsérvese como ambas clases tienen las anotaciones <strong>@Component</strong> y <strong>@Profile</strong> antes de la definición de la clase. Lógicamente en una clase la etiqueta <strong>@Profile</strong> tiene el parámetro <strong>default</strong> y en otra el parámetro es <strong>other</strong> .</p>
+<p>El código de la clase <code>ProfilesController</code>   es el siguiente:</p>
+<pre><code>@RestController
+public class ProfilesController {
+	@Autowired 
+	IRead read;
+	
+	@Value(&quot;${app.ID}&quot;)
+	int id;
+	
+	@Autowired
+	IWrite write;
+	
+	@GetMapping(&quot;/hello&quot;)
+	public String get(@RequestParam(value=&quot;name&quot;,required=false) String name)
+	{
+        return &quot;Hello &quot;+(name==null?&quot;SIN NOMBRE&quot;:name)+
+        &quot;&lt;br&gt;&lt;br&gt; The name of the profile number:&quot;+ id+&quot; in the database H2 is: &quot;+read.readRegistry(id)+
+        &quot;&lt;br&gt; The profile used in the application is : &quot;+write.getProfile();
+				
+	}
+}
+</code></pre>
+<p>En esta clase podemos ver, la anotación <strong>@Value(&quot;${app.ID}&quot;)</strong>  con ella lo que le estamos diciendo a <strong>Spring</strong> es que inicialice la variable que hay a continuación ( &quot;<code>id</code>&quot;) con el valor que encuentre en un fichero de <em>properites</em>. Como no especificamos ninguno buscara dentro de <code>application.properties</code> y encontrara la siguiente línea:</p>
+<pre><code>app.ID=1
+</code></pre>
+<p>con lo cual la variable <code>id</code>tendra el valor <strong>1</strong> </p>
+<p>Pero si nos fijamos en nuestro proyecto además del fichero <code>application.properties</code> también tenemos un fichero llamado <code>application-other.properties</code>, esto es porque <strong>Spring</strong> en el caso de que el perfil sea <strong>other</strong> buscara primero el fichero <code>application-other.properties</code> para establecer las propiedades. </p>
+<p>De esta manera cuando el perfil sea <strong>other</strong> leerá el  fichero <code>application-other.properties</code> y encontrara la línea:</p>
+<pre><code>app.ID=2
+</code></pre>
+<p>con lo cual la variable <strong>id</strong> tendrá el valor <strong>2</strong></p>
+<p>Para probar la aplicación en <em>Eclipse</em>  podremos crear dos configuraciones. Una para el perfil <strong>default</strong> </p>
+<p><img src='.\captura1.png' alt='Configuración para perfil default' referrerPolicy='no-referrer' /></p>
+<p>donde podemos ver que no especificamos ningún perfil con lo cual <strong>Spring</strong> asignara el perfil <strong>default</strong> y otra para el perfil <strong>other</strong> </p>
+<p><img src='.\captura2.png' alt='Configuración para perfil other' referrerPolicy='no-referrer' /></p>
+<p>La del perfil <strong>default</strong> escuchara en el puerto 8080 y la de <strong>other</strong> en el 8081. Eso esta especificado con la línea <code>server.port=8080</code> en el fichero   <code>application.properties</code> y con la  línea <code>server.port:8081</code>en el fichero  <code>application-other.properties</code></p>
+<p>Como se puede ver en las siguientes pantallas, la llamada a <a href='http://localhost:8080/hello?name=profesor' target='_blank' class='url'>http://localhost:8080/hello?name=profesor</a> devuelve la siguiente salida:</p>
+<p><img src='.\captura-navegador8080.png' alt='Configuración para perfil default' referrerPolicy='no-referrer' /></p>
+<p>Se puede ver como el valor de la variable <strong>id</strong> es 1 y como lee en la  base de datos H2, el valor del registro correspondiente.</p>
+<p>Si llamamos a  <a href='http://localhost:8081/hello?name=profesor' target='_blank' class='url'>http://localhost:8081/hello?name=profesor</a>, veremos la siguiente salida:</p>
+<p><img src='.\captura-navegador8080.png' alt='Configuración para perfil default' referrerPolicy='no-referrer' /></p>
+<p>En un articulo siguiente hablare del uso de los perfiles para testear la aplicación con <strong>JUnit</strong> </p>
+<p>Hasta entonces,  ¡¡ que la curiosidad no os abandone ;-) !!</p>
+<p>&nbsp;</p>
+</body>
+</html>

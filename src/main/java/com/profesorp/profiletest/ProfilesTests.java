@@ -34,7 +34,7 @@ public class ProfilesTests {
 	}
 	@Bean
 	@Profile("other")
-	IWrite getWriterOthe()
+	IWrite getWriterOther()
 	{
 		return new WriteImpl("..other.. "+getProfile());		
 	}

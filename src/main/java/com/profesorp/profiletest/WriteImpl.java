@@ -17,5 +17,4 @@ public class WriteImpl implements IWrite{
 		System.out.println("Profile: "+profile+" -> "+ log);
 		
 	}
-
 }
